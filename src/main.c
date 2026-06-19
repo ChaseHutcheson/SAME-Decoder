@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sndfile.h>
+#include <string.h>
 #include "goertzel.h"
 
 int main(int argc, char** argv) {
@@ -29,16 +30,59 @@ int main(int argc, char** argv) {
     printf("Sections: %d\n", sf_info.sections);
     printf("Seekable: %d\n", sf_info.seekable);
 
-    float *samples = malloc(sf_info.frames * sf_info.channels * sizeof(float));
+    int total_samples = sf_info.frames * sf_info.channels;
+
+    float *samples = malloc(total_samples * sizeof(float));
+    float *samples_mono = malloc(sf_info.frames * sizeof(float));
+
+    if (samples == NULL || samples_mono == NULL)
+    {
+        fprintf(stderr, "Failure to allocate memory for samples.\n");
+        return 1;
+    }
 
     printf("Samples at memory address: %p\n", (void *)samples);
+    printf("Mono-converted samples at memory address: %p\n", (void *)samples_mono);
 
     sf_count_t frames_read = sf_read_float(sf_ptr, samples, sf_info.frames);
+
+    if (frames_read == 0) {
+        fprintf(stderr, "Failure to read samples from file.\n");
+        return 1;
+    }
+
+    // Downmix into mono audio if needed
+    if (sf_info.channels > 1) {
+        printf("File is not mono. Downmixing to mono...");
+
+        for (int current_frame = 0; current_frame < sf_info.frames; ++current_frame) {
+
+            float mono_sample = 0.0f;
+
+            for (int current_sample = 0; current_sample < sf_info.channels; ++current_sample) {
+                int index = current_frame * sf_info.channels + current_sample;
+
+                mono_sample += samples[index];
+            }
+
+            mono_sample /= sf_info.channels;
+
+            samples_mono[current_frame * sf_info.channels] = mono_sample;
+        }
+
+        printf("Downmixing to mono complete.");
+    } else {
+        memcpy(samples_mono, samples, total_samples);
+    }
+
+    
 
     // for (int i = 0; i < (sf_info.frames * sf_info.channels); ++i) {
     //     printf("Sample %d: %f\n", i, samples[i]);
 
     // }
+
+
 
     free(samples);
 

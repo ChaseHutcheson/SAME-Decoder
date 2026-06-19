@@ -9,16 +9,28 @@ project(
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SNDFILE REQUIRED sndfile)
+
 add_executable(
     SAME-Decoder
     src/main.c 
-    src/wav.c
+    src/goertzel.c
 )
 
 target_include_directories(
     SAME-Decoder 
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
+        ${SNDFILE_INCLUDE_DIRS}
+)
+
+
+target_link_libraries(
+    SAME-Decoder 
+    PRIVATE
+        m
+        ${SNDFILE_LIBRARIES}
 )
 
 target_compile_options(
@@ -27,10 +39,4 @@ target_compile_options(
         -Wall
         -Wextra
         -Wpedantic
-)
-
-target_link_libraries(
-    SAME-Decoder 
-    PRIVATE
-        m
 )

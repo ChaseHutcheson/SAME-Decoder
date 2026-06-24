@@ -3,8 +3,13 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sndfile.h>
+#include <math.h>
 #include <string.h>
 #include "goertzel.h"
+
+#define MARK_FREQ 2083.3f
+#define SPACE_FREQ 1562.5f
+#define THRESHOLD 0.01f
 
 int main(int argc, char** argv) {
     // Check the user included a directory to a file
@@ -51,7 +56,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Downmix into mono audio if needed
+    // Downmix into mono
     if (sf_info.channels > 1) {
         printf("File is not mono. Downmixing to mono...");
 
@@ -67,24 +72,48 @@ int main(int argc, char** argv) {
 
             mono_sample /= sf_info.channels;
 
-            samples_mono[current_frame * sf_info.channels] = mono_sample;
+            samples_mono[current_frame] = mono_sample;
         }
 
         printf("Downmixing to mono complete.");
     } else {
-        memcpy(samples_mono, samples, total_samples);
+        memcpy(samples_mono, samples, sf_info.frames * sizeof(float));
     }
 
-    
-
-    // for (int i = 0; i < (sf_info.frames * sf_info.channels); ++i) {
-    //     printf("Sample %d: %f\n", i, samples[i]);
-
-    // }
-
-
-
     free(samples);
+
+    double baud = 520.833333;
+    double samples_per_bit = sf_info.samplerate / baud;
+    int previous_symbol = 0, symbol_encountered = 0;
+
+
+    int buffer_size = (int)round(samples_per_bit);
+
+    // Sliding window
+    for (int window_position = 0; window_position < sf_info.frames - buffer_size; window_position++) {
+        float mark_energy = goertzel(&samples_mono[window_position], buffer_size, sf_info.samplerate, MARK_FREQ);
+        float space_energy = goertzel(&samples_mono[window_position], buffer_size, sf_info.samplerate, SPACE_FREQ);
+
+        float output = mark_energy - space_energy;
+
+        int symbol;
+
+        if (output > THRESHOLD) {
+            symbol = 1;
+        } else if (output < -THRESHOLD) {
+            symbol = 0;
+        } else {
+            continue;
+        }
+
+        if (symbol_encountered && symbol != previous_symbol) {
+            printf("Transition near sample %d\n", window_position);
+        }
+
+        previous_symbol = symbol;
+        symbol_encountered = 1;
+    }
+
 
     return 0;
 }

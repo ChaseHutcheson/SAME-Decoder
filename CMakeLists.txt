@@ -1,25 +1,29 @@
 cmake_minimum_required(VERSION 4.3)
 
 project(
-    SAME-Decoder 
-    VERSION 0.1.0 
+    SAME-Decoder
+    VERSION 0.1.0
     LANGUAGES C
 )
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SNDFILE REQUIRED sndfile)
 
 add_executable(
     SAME-Decoder
-    src/main.c 
-    src/goertzel.c
+    src/main.c
+    src/demodulate.c
+    src/args.c
+    src/log.c
+
 )
 
 target_include_directories(
-    SAME-Decoder 
+    SAME-Decoder
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
         ${SNDFILE_INCLUDE_DIRS}
@@ -27,7 +31,7 @@ target_include_directories(
 
 
 target_link_libraries(
-    SAME-Decoder 
+    SAME-Decoder
     PRIVATE
         m
         ${SNDFILE_LIBRARIES}
